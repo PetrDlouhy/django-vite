@@ -122,6 +122,7 @@ class DjangoViteAssetLoader:
             raise RuntimeError(
                 f"Cannot find {path} in Vite manifest "
                 f"at {DJANGO_VITE_MANIFEST_PATH}"
+                f"\n{self._manifest}"
             )
 
         tags = []
