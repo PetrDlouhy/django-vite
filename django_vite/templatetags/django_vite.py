@@ -72,6 +72,24 @@ if DJANGO_VITE_STATIC_URL[-1] != "/":
     DJANGO_VITE_STATIC_URL += "/"
 
 
+def _parse_manifest() -> Dict:
+    """
+    Read and parse the Vite manifest file.
+
+    Raises:
+        RuntimeError: if cannot load the file or JSON in file is malformed.
+    """
+
+    try:
+        with open(DJANGO_VITE_MANIFEST_PATH, "r") as manifest_file:
+            return json.loads(manifest_file.read())
+    except Exception as error:
+        raise RuntimeError(
+            f"Cannot read Vite manifest file at "
+            f"{DJANGO_VITE_MANIFEST_PATH} : {str(error)}"
+        )
+
+
 class DjangoViteAssetLoader:
     """
     Class handling Vite asset loading.
@@ -289,24 +307,6 @@ class DjangoViteAssetLoader:
             attrs=scripts_attrs,
         )
 
-    def _parse_manifest(self) -> None:
-        """
-        Read and parse the Vite manifest file.
-
-        Raises:
-            RuntimeError: if cannot load the file or JSON in file is malformed.
-        """
-
-        try:
-            with open(DJANGO_VITE_MANIFEST_PATH, "r") as manifest_file:
-                manifest_content = manifest_file.read()
-                self._manifest = json.loads(manifest_content)
-        except Exception as error:
-            raise RuntimeError(
-                f"Cannot read Vite manifest file at "
-                f"{DJANGO_VITE_MANIFEST_PATH} : {str(error)}"
-            )
-
     @classmethod
     def instance(cls):
         """
@@ -320,11 +320,11 @@ class DjangoViteAssetLoader:
 
         if cls._instance is None:
             cls._instance = cls.__new__(cls)
-            cls._instance._manifest = None
-
             # Manifest is only used in production.
-            if not DJANGO_VITE_DEV_MODE:
-                cls._instance._parse_manifest()
+            if DJANGO_VITE_DEV_MODE:
+                cls._instance._manifest = None
+            else:
+                cls._instance._manifest = _parse_manifest()
 
         return cls._instance
 
