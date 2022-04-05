@@ -298,10 +298,9 @@ class DjangoViteAssetLoader:
         """
 
         try:
-            manifest_file = open(DJANGO_VITE_MANIFEST_PATH, "r")
-            manifest_content = manifest_file.read()
-            manifest_file.close()
-            self._manifest = json.loads(manifest_content)
+            with open(DJANGO_VITE_MANIFEST_PATH, "r") as manifest_file:
+                manifest_content = manifest_file.read()
+                self._manifest = json.loads(manifest_content)
         except Exception as error:
             raise RuntimeError(
                 f"Cannot read Vite manifest file at "
