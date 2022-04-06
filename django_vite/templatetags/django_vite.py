@@ -1,4 +1,5 @@
 import json
+import threading
 from pathlib import Path
 from typing import Dict, List
 from urllib.parse import urljoin
@@ -96,6 +97,7 @@ class DjangoViteAssetLoader:
     """
 
     _instance = None
+    _lock = threading.Lock()
 
     def __init__(self) -> None:
         raise RuntimeError("Use the instance() method instead.")
@@ -318,13 +320,18 @@ class DjangoViteAssetLoader:
             DjangoViteAssetLoader -- only instance of the class.
         """
 
-        if cls._instance is None:
-            cls._instance = cls.__new__(cls)
-            # Manifest is only used in production.
-            if DJANGO_VITE_DEV_MODE:
-                cls._instance._manifest = None
-            else:
-                cls._instance._manifest = _parse_manifest()
+        if not cls._instance:
+            with cls._lock:
+                # another thread could have created the instance
+                # before we acquired the lock. So check that the
+                # instance is still nonexistent.
+                if not cls._instance:
+                    cls._instance = super().__new__(cls)
+
+                if DJANGO_VITE_DEV_MODE:
+                    cls._instance._manifest = None
+                else:
+                    cls._instance._manifest = _parse_manifest()
 
         return cls._instance
 
