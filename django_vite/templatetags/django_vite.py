@@ -1,5 +1,4 @@
 import json
-import threading
 from pathlib import Path
 from typing import Dict, List
 from urllib.parse import urljoin
@@ -91,13 +90,21 @@ def _parse_manifest() -> Dict:
         )
 
 
+try:
+    if DJANGO_VITE_DEV_MODE:
+        _manifest = None
+    else:
+        _manifest = _parse_manifest()
+except RuntimeError:
+    pass
+
+
 class DjangoViteAssetLoader:
     """
     Class handling Vite asset loading.
     """
 
     _instance = None
-    _lock = threading.Lock()
 
     def __init__(self) -> None:
         raise RuntimeError("Use the instance() method instead.")
@@ -138,15 +145,14 @@ class DjangoViteAssetLoader:
                 {"type": "module"},
             )
 
-        if not self._manifest or path not in self._manifest:
+        if not _manifest or path not in _manifest:
             raise RuntimeError(
                 f"Cannot find {path} in Vite manifest "
                 f"at {DJANGO_VITE_MANIFEST_PATH}"
-                f"\n{self._manifest}"
             )
 
         tags = []
-        manifest_entry = self._manifest[path]
+        manifest_entry = _manifest[path]
         scripts_attrs = {"type": "module", "crossorigin": "", **kwargs}
 
         # Add dependent CSS
@@ -177,7 +183,7 @@ class DjangoViteAssetLoader:
         """
 
         tags = []
-        manifest_entry = self._manifest[path]
+        manifest_entry = _manifest[path]
 
         if "imports" in manifest_entry:
             for import_path in manifest_entry["imports"]:
@@ -219,13 +225,13 @@ class DjangoViteAssetLoader:
         if DJANGO_VITE_DEV_MODE:
             return DjangoViteAssetLoader._generate_vite_server_url(path)
 
-        if not self._manifest or path not in self._manifest:
+        if not _manifest or path not in _manifest:
             raise RuntimeError(
                 f"Cannot find {path} in Vite manifest "
                 f"at {DJANGO_VITE_MANIFEST_PATH}"
             )
 
-        return urljoin(DJANGO_VITE_STATIC_URL, self._manifest[path]["file"])
+        return urljoin(DJANGO_VITE_STATIC_URL, _manifest[path]["file"])
 
     def generate_vite_legacy_polyfills(
         self,
@@ -254,7 +260,7 @@ class DjangoViteAssetLoader:
 
         scripts_attrs = {"nomodule": "", "crossorigin": "", **kwargs}
 
-        for path, content in self._manifest.items():
+        for path, content in _manifest.items():
             if DJANGO_VITE_LEGACY_POLYFILLS_MOTIF in path:
                 return DjangoViteAssetLoader._generate_script_tag(
                     urljoin(DJANGO_VITE_STATIC_URL, content["file"]),
@@ -295,13 +301,13 @@ class DjangoViteAssetLoader:
         if DJANGO_VITE_DEV_MODE:
             return ""
 
-        if not self._manifest or path not in self._manifest:
+        if not _manifest or path not in _manifest:
             raise RuntimeError(
                 f"Cannot find {path} in Vite manifest "
                 f"at {DJANGO_VITE_MANIFEST_PATH}"
             )
 
-        manifest_entry = self._manifest[path]
+        manifest_entry = _manifest[path]
         scripts_attrs = {"nomodule": "", "crossorigin": "", **kwargs}
 
         return DjangoViteAssetLoader._generate_script_tag(
@@ -321,17 +327,7 @@ class DjangoViteAssetLoader:
         """
 
         if not cls._instance:
-            with cls._lock:
-                # another thread could have created the instance
-                # before we acquired the lock. So check that the
-                # instance is still nonexistent.
-                if not cls._instance:
-                    cls._instance = super().__new__(cls)
-
-                if DJANGO_VITE_DEV_MODE:
-                    cls._instance._manifest = None
-                else:
-                    cls._instance._manifest = _parse_manifest()
+            cls._instance = super().__new__(cls)
 
         return cls._instance
 
