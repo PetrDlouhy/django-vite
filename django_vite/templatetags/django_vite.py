@@ -90,13 +90,10 @@ def _parse_manifest() -> Dict:
         )
 
 
-try:
-    if DJANGO_VITE_DEV_MODE:
-        _manifest = None
-    else:
-        _manifest = _parse_manifest()
-except RuntimeError:
-    pass
+if DJANGO_VITE_DEV_MODE:
+    _manifest = None
+else:
+    _manifest = _parse_manifest()
 
 
 class DjangoViteAssetLoader:
